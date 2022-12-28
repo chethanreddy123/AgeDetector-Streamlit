@@ -1,3 +1,7 @@
+import streamlit as st
+import cv2
+import numpy as np
+
 import cv2
 import math
 import argparse
@@ -42,30 +46,41 @@ faceNet=cv2.dnn.readNet(faceModel,faceProto)
 ageNet=cv2.dnn.readNet(ageModel,ageProto)
 genderNet=cv2.dnn.readNet(genderModel,genderProto)
 
-frame = cv2.imread("girl2.jpg")
-padding=20
-resultImg,faceBoxes=highlightFace(faceNet,frame)
-if not faceBoxes:
-    print("No face detected")
 
-for faceBox in faceBoxes:
-    face=frame[max(0,faceBox[1]-padding):
-                min(faceBox[3]+padding,frame.shape[0]-1),max(0,faceBox[0]-padding)
-                :min(faceBox[2]+padding, frame.shape[1]-1)]
 
-    blob=cv2.dnn.blobFromImage(face, 1.0, (227,227), MODEL_MEAN_VALUES, swapRB=False)
-    genderNet.setInput(blob)
-    genderPreds=genderNet.forward()
-    gender=genderList[genderPreds[0].argmax()]
-    print(f'Gender: {gender}')
+img_file_buffer = st.camera_input("Take a picture")
 
-    ageNet.setInput(blob)
-    agePreds=ageNet.forward()
-    age=ageList[agePreds[0].argmax()]
-    print(f'Age: {age[1:-1]} years')
+if img_file_buffer is not None:
+    # To read image file buffer with OpenCV:
+    bytes_data = img_file_buffer.getvalue()
+    frame = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-cv2.putText(resultImg, f'{gender}, {age}', (faceBox[0], faceBox[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv2.LINE_AA)
-cv2.imshow("Detecting age and gender", resultImg)
+    padding=20
+    resultImg,faceBoxes=highlightFace(faceNet,frame)
+    if not faceBoxes:
+        print("No face detected")
+    
+    gender = None
+    age  = None
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    for faceBox in faceBoxes:
+        face=frame[max(0,faceBox[1]-padding):
+                    min(faceBox[3]+padding,frame.shape[0]-1),max(0,faceBox[0]-padding)
+                    :min(faceBox[2]+padding, frame.shape[1]-1)]
+
+        blob=cv2.dnn.blobFromImage(face, 1.0, (227,227), MODEL_MEAN_VALUES, swapRB=False)
+        genderNet.setInput(blob)
+        genderPreds=genderNet.forward()
+        gender=genderList[genderPreds[0].argmax()]
+        print(f'Gender: {gender}')
+
+        ageNet.setInput(blob)
+        agePreds=ageNet.forward()
+        age=ageList[agePreds[0].argmax()]
+        print(f'Age: {age[1:-1]} years')
+
+    cv2.putText(resultImg, f'{gender}, {age}', (faceBox[0], faceBox[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2, cv2.LINE_AA)
+    st.image(resultImg)
+    print(age, gender)
+ 
+    st.write(frame.shape)
